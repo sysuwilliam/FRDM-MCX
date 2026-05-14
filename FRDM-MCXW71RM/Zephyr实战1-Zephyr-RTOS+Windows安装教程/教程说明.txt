@@ -1,0 +1,47 @@
+制作于：
+-------------2025-12-26-------------
+整理于：
+-------------2025-12-28-------------
+
+
+说明1：
+1. Zephyr实战1-Zephyr-RTOS+Windows安装教程.md 
+
+教程是Markdown格式的。可自行搜索：
+Markdown转HTML在线免费工具
+
+把md文件内容复制进行进行预览。
+例如：
+https://seo.yiguotech.com/seo-tools/md-to-html-converter
+https://d1tools.com/tools/convert-markdown-to-html/
+
+等在线免费工具。
+
+
+----------------------------------------
+也可使用 VSCode的预览模式查看md文档。
+
+在 VS Code 中预览 Markdown
+
+打开一个 .md 文件；
+
+方法 1：快捷键
+按下快捷键：
+Windows ： Ctrl+Shift+V
+
+方法 2：
+在编辑器右上角有一个 “Open Preview” 图标（眼睛 👁️，放大镜🔎），点击即可。
+----------------------------------------
+
+
+说明2：
+B站视频教程地址：
+https://www.bilibili.com/video/BV1jwBvBpEwN/?vd_source=9ebd187ccc98c26d8c32c09c0ffa5319
+https://www.bilibili.com/video/BV1jwBvBpEwN/?vd_source=9ebd187ccc98c26d8c32c09c0ffa5319
+
+
+
+
+“把代码煮成白开水，不堆术语说人话，是我对技术的诚意与尊重”
+
+感谢关注，谢谢您~

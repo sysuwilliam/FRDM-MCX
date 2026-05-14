@@ -1,0 +1,11 @@
+说明1：
+《Zephyr 运行嵌入式应用——按键控制 LED 亮灭程序。》B站视频教程地址：
+https://www.bilibili.com/video/BV1tximBqEg2/?vd_source=9ebd187ccc98c26d8c32c09c0ffa5319
+https://www.bilibili.com/video/BV1tximBqEg2/?vd_source=9ebd187ccc98c26d8c32c09c0ffa5319
+
+
+“把代码煮成白开水，不堆术语说人话，是我对技术的诚意与尊重”
+
+感谢关注，谢谢您~
+
+

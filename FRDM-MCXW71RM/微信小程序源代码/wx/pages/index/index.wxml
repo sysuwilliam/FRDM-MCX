@@ -1,0 +1,64 @@
+<!--pages/index/index.wxml-->
+<view class="page">
+
+  <!-- 连接状态栏 -->
+  <view class="status-bar">
+    <view class="status-dot {{connected ? 'active' : ''}}"></view>
+    <text class="status-text">{{statusText}}</text>
+  </view>
+
+  <!-- 加载动画 -->
+  <view class="loading-wrap" wx:if="{{loading || discovering}}">
+    <view class="spinner"></view>
+    <text class="loading-text">{{statusText}}</text>
+  </view>
+
+  <!-- 数据显示区 -->
+  <view class="cards" wx:if="{{connected}}">
+
+    <!-- 温度卡片 -->
+    <view class="card temp-card">
+      <view class="card-label">温度</view>
+      <view class="card-value">
+        <text class="value-num">{{temperature}}</text>
+        <text class="value-unit">°C</text>
+      </view>
+      <view class="card-icon">🌡️</view>
+    </view>
+
+    <!-- 湿度卡片 -->
+    <view class="card hum-card">
+      <view class="card-label">湿度</view>
+      <view class="card-value">
+        <text class="value-num">{{humidity}}</text>
+        <text class="value-unit">%</text>
+      </view>
+      <view class="card-icon">💧</view>
+    </view>
+
+  </view>
+
+  <!-- 未连接占位 -->
+  <view class="placeholder" wx:if="{{!connected && !loading && !discovering}}">
+    <text class="placeholder-icon">📡</text>
+    <text class="placeholder-text">点击下方按钮\n开始连接温湿度传感器</text>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="btn-wrap">
+    <button
+      class="btn btn-connect"
+      wx:if="{{!connected}}"
+      bindtap="connect"
+      disabled="{{loading || discovering}}">
+      {{loading || discovering ? '连接中...' : '开始连接'}}
+    </button>
+    <button
+      class="btn btn-disconnect"
+      wx:if="{{connected}}"
+      bindtap="disconnect">
+      断开连接
+    </button>
+  </view>
+
+</view>
