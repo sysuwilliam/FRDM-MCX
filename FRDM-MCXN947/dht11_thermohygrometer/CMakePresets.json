@@ -1,0 +1,37 @@
+{
+  "version": 7,
+  "cmakeMinimumRequired": {
+    "major": 3
+  },
+  "configurePresets": [
+    {
+      "name": "build_1",
+      "displayName": "build_1",
+      "generator": "Ninja",
+      "binaryDir": "D:/NXP/nxp_zephyr/build/dht11_thermohygrometer/${presetName}",
+      "inherits": "build_1-env",
+      "cacheVariables": {
+        "APP_DIR": {
+          "type": "PATH",
+          "value": "${fileDir}"
+        },
+        "BOARD": "frdm_mcxn947/mcxn947/cpu0",
+        "CMAKE_BUILD_TYPE": "build",
+        "ZEPHYR_BASE": "$env{ZEPHYR_BASE}",
+        "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "$env{binaryDir}",
+        "CMAKE_LIBRARY_OUTPUT_DIRECTORY": "$env{binaryDir}",
+        "CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "$env{binaryDir}"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build_1",
+      "displayName": "build_1",
+      "configurePreset": "build_1"
+    }
+  ],
+  "include": [
+    "mcux_include.json"
+  ]
+}

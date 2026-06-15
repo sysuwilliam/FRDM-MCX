@@ -1,0 +1,21 @@
+{
+  "version": 7,
+  "cmakeMinimumRequired": {
+    "major": 3
+  },
+  "configurePresets": [
+    {
+      "name": "build_1-env",
+      "displayName": "build_1-env",
+      "hidden": true,
+      "environment": {
+        "ZEPHYR_BASE": "D:/NXP/nxp_zephyr/zephyr",
+        "MCUX_VENV_PATH": "C:/Users/18527/.mcuxpressotools/.mcux-venv-3.12/Scripts",
+        "ZEPHYR_SDK_INSTALL_DIR": "D:/Zephyr/sdk",
+        "PATH": "$env{MCUX_VENV_PATH}${pathListSep}$penv{PATH}"
+      },
+      "cacheVariables": {}
+    }
+  ],
+  "buildPresets": []
+}
