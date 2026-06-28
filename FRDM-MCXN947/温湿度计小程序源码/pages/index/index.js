@@ -1,365 +1,257 @@
-const DEVICE_NAME = 'MCXW71_TH'
-const HTS_SERVICE = '00001809-0000-1000-8000-00805f9b34fb'
-const HTS_TEMP_CHAR = '00002a1c-0000-1000-8000-00805f9b34fb'
-const ESS_SERVICE = '0000181a-0000-1000-8000-00805f9b34fb'
-const ESS_HUM_CHAR = '00002a6f-0000-1000-8000-00805f9b34fb'
+const DEVICE_NAME = 'MCXN947_DHT11'
+const COMPANY_ID = 0x02e5
+const PROTOCOL_VERSION = 1
 
-let deviceId = null
-let isConnecting = false
-let isScanning = false
-let scanTimer = null
-
-function readInt16(buffer) {
-  return new DataView(buffer).getInt16(0, true)
-}
-
-function readUint16(buffer) {
-  return new DataView(buffer).getUint16(0, true)
-}
+let scanning = false
+let scanTimeout = null
 
 function formatTime(date) {
   const pad = (value) => `${value}`.padStart(2, '0')
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
-function clearScanTimer() {
-  if (scanTimer) {
-    clearInterval(scanTimer)
-    scanTimer = null
+function arrayBufferToBytes(buffer) {
+  if (!buffer) return []
+  return Array.from(new Uint8Array(buffer))
+}
+
+function decodeAscii(bytes) {
+  return bytes.map((value) => String.fromCharCode(value)).join('')
+}
+
+function parseAdvertisement(buffer) {
+  const bytes = arrayBufferToBytes(buffer)
+  const result = {
+    localName: '',
+    manufacturerData: null
+  }
+  let offset = 0
+
+  while (offset < bytes.length) {
+    const length = bytes[offset]
+    if (length === 0) break
+
+    const typeOffset = offset + 1
+    const valueOffset = offset + 2
+    const valueLength = length - 1
+    if (typeOffset >= bytes.length || valueOffset + valueLength > bytes.length) break
+
+    const type = bytes[typeOffset]
+    const value = bytes.slice(valueOffset, valueOffset + valueLength)
+
+    if (type === 0x08 || type === 0x09) {
+      result.localName = decodeAscii(value)
+    } else if (type === 0xff) {
+      result.manufacturerData = value
+    }
+
+    offset += length + 1
+  }
+
+  return result
+}
+
+function readInt16LE(bytes, offset) {
+  const value = bytes[offset] | (bytes[offset + 1] << 8)
+  return value & 0x8000 ? value - 0x10000 : value
+}
+
+function readUint16LE(bytes, offset) {
+  return bytes[offset] | (bytes[offset + 1] << 8)
+}
+
+function checksum(bytes) {
+  return bytes.reduce((sum, value) => (sum + value) & 0xff, 0)
+}
+
+function parseThermohygrometerPayload(bytes) {
+  if (!bytes || bytes.length < 12) return null
+
+  const companyId = bytes[0] | (bytes[1] << 8)
+  const validChecksum = checksum(bytes.slice(0, 11)) === bytes[11]
+
+  if (
+    companyId !== COMPANY_ID ||
+    bytes[2] !== 0x54 ||
+    bytes[3] !== 0x48 ||
+    bytes[4] !== PROTOCOL_VERSION ||
+    !validChecksum
+  ) {
+    return null
+  }
+
+  return {
+    sequence: bytes[5],
+    temperature: readInt16LE(bytes, 6) / 100,
+    humidity: readUint16LE(bytes, 8) / 100,
+    valid: (bytes[10] & 0x01) === 0x01
+  }
+}
+
+function clearScanTimeout() {
+  if (scanTimeout) {
+    clearTimeout(scanTimeout)
+    scanTimeout = null
   }
 }
 
 Page({
   data: {
-    connected: false,
-    loading: false,
-    discovering: false,
+    scanning: false,
+    receiving: false,
     temperature: '--',
     humidity: '--',
-    statusText: '点击开始连接，自动搜索传感器',
+    statusText: '点击开始扫描 ESP32-S3 广播',
     statusTone: 'idle',
-    primaryButtonText: '开始连接',
-    connectionLabel: '待连接',
+    primaryButtonText: '开始扫描',
+    deviceName: DEVICE_NAME,
+    deviceId: '--',
+    rssi: '--',
+    sequence: '--',
     lastUpdated: '--:--:--',
-    environmentHint: '连接后将实时显示温度与湿度',
-    temperatureTrend: '等待数据',
-    humidityTrend: '等待数据'
+    hintText: '请保持 ESP32-S3 上电，并确认 FRDM-MCXN947 已通过 UART 发送 TH 数据帧。'
   },
 
   onLoad() {
-    this.bindBleListeners()
+    this.bindBluetoothListeners()
   },
 
   onUnload() {
     this.cleanup()
   },
 
-  bindBleListeners() {
-    this.handleConnectionStateChange = (res) => {
-      if (res.deviceId !== deviceId) return
-      if (!res.connected) {
-        deviceId = null
-        isConnecting = false
-        isScanning = false
-        clearScanTimer()
+  bindBluetoothListeners() {
+    this.handleDeviceFound = (res) => {
+      const devices = res.devices || []
+
+      devices.forEach((device) => {
+        const adv = parseAdvertisement(device.advertisData)
+        const name = device.localName || device.name || adv.localName || ''
+        const measurement =
+          parseThermohygrometerPayload(adv.manufacturerData) ||
+          parseThermohygrometerPayload(arrayBufferToBytes(device.manufacturerData)) ||
+          parseThermohygrometerPayload(arrayBufferToBytes(device.advertisData))
+
+        if (!measurement && name !== DEVICE_NAME) return
+        if (!measurement) return
+
+        const lastUpdated = formatTime(new Date())
         this.setData({
-          connected: false,
-          loading: false,
-          discovering: false,
-          temperature: '--',
-          humidity: '--',
-          statusText: '连接已断开',
-          statusTone: 'idle',
-          primaryButtonText: '重新连接',
-          connectionLabel: '已断开',
-          environmentHint: '设备断开后停止接收实时数据',
-          temperatureTrend: '等待数据',
-          humidityTrend: '等待数据'
+          receiving: true,
+          temperature: measurement.valid ? measurement.temperature.toFixed(2) : '--',
+          humidity: measurement.valid ? measurement.humidity.toFixed(2) : '--',
+          statusText: measurement.valid ? '已收到 ESP32-S3 温湿度广播' : '已发现设备，等待有效测量值',
+          statusTone: measurement.valid ? 'success' : 'busy',
+          deviceName: name || DEVICE_NAME,
+          deviceId: device.deviceId || '--',
+          rssi: typeof device.RSSI === 'number' ? `${device.RSSI} dBm` : '--',
+          sequence: measurement.sequence,
+          lastUpdated,
+          hintText: '广播包校验通过，页面会随 ESP32-S3 新广播持续刷新。'
         })
+      })
+    }
+
+    this.handleAdapterStateChange = (res) => {
+      if (!res.available) {
+        this.stopScan('蓝牙适配器不可用，请开启系统蓝牙', 'danger')
       }
     }
 
-    this.handleCharacteristicValueChange = (res) => {
-      const characteristicId = res.characteristicId.toUpperCase()
-      const lastUpdated = formatTime(new Date())
-
-      if (characteristicId === HTS_TEMP_CHAR.toUpperCase()) {
-        const temperature = (readInt16(res.value) / 100).toFixed(2)
-        this.setData({
-          temperature,
-          lastUpdated,
-          environmentHint: '数据刷新正常，当前正在接收温度变化',
-          temperatureTrend: `${temperature} °C`
-        })
-      } else if (characteristicId === ESS_HUM_CHAR.toUpperCase()) {
-        const humidity = (readUint16(res.value) / 100).toFixed(2)
-        this.setData({
-          humidity,
-          lastUpdated,
-          environmentHint: '数据刷新正常，当前正在接收湿度变化',
-          humidityTrend: `${humidity} %RH`
-        })
-      }
-    }
-
-    wx.onBLEConnectionStateChange(this.handleConnectionStateChange)
-    wx.onBLECharacteristicValueChange(this.handleCharacteristicValueChange)
+    wx.onBluetoothDeviceFound(this.handleDeviceFound)
+    wx.onBluetoothAdapterStateChange(this.handleAdapterStateChange)
   },
 
-  connect() {
-    if (isConnecting || isScanning || deviceId) return
+  startScan() {
+    if (scanning) return
 
-    isConnecting = true
     this.setData({
-      loading: true,
-      discovering: false,
-      statusText: '正在打开蓝牙并搜索设备...',
+      scanning: true,
+      receiving: false,
+      statusText: '正在打开蓝牙适配器...',
       statusTone: 'busy',
-      primaryButtonText: '连接中...',
-      connectionLabel: '扫描中',
-      environmentHint: '请保持传感器通电并靠近手机'
+      primaryButtonText: '停止扫描',
+      hintText: `正在搜索设备名 ${DEVICE_NAME} 或匹配的厂商广播数据。`
     })
 
     wx.openBluetoothAdapter({
       success: () => {
         this.startDiscovery()
       },
-      fail: (err) => {
-        if (err.errCode === 10001) {
-          this.startDiscovery()
-          return
-        }
-
-        isConnecting = false
+      fail: () => {
         this.setData({
-          loading: false,
-          statusText: '蓝牙不可用，请检查系统蓝牙权限',
+          scanning: false,
+          statusText: '蓝牙不可用，请检查权限或系统蓝牙开关',
           statusTone: 'danger',
-          primaryButtonText: '重新连接',
-          connectionLabel: '未开启'
+          primaryButtonText: '重新扫描'
         })
       }
     })
   },
 
   startDiscovery() {
-    isScanning = true
-    this.setData({
-      discovering: true,
-      statusText: '正在扫描 MCXW71_TH...',
-      statusTone: 'busy'
-    })
-
+    scanning = true
     wx.startBluetoothDevicesDiscovery({
       allowDuplicatesKey: true,
+      interval: 0,
       success: () => {
-        this.pollDevices()
-      },
-      fail: () => {
-        isConnecting = false
-        isScanning = false
-        clearScanTimer()
         this.setData({
-          loading: false,
-          discovering: false,
-          statusText: '扫描失败，请稍后重试',
-          statusTone: 'danger',
-          primaryButtonText: '重新连接',
-          connectionLabel: '扫描失败'
+          scanning: true,
+          statusText: '正在扫描 ESP32-S3 广播...',
+          statusTone: 'busy'
         })
-      }
-    })
-  },
 
-  pollDevices() {
-    let count = 0
-    clearScanTimer()
-
-    scanTimer = setInterval(() => {
-      count += 1
-
-      if (count >= 15) {
-        clearScanTimer()
-        isConnecting = false
-        isScanning = false
-        wx.stopBluetoothDevicesDiscovery({ success: () => {}, fail: () => {} })
-        this.setData({
-          loading: false,
-          discovering: false,
-          statusText: '15 秒内未找到设备',
-          statusTone: 'danger',
-          primaryButtonText: '重新连接',
-          connectionLabel: '未发现',
-          environmentHint: '请确认设备名称为 MCXW71_TH 且广播已开启'
-        })
-        return
-      }
-
-      wx.getBluetoothDevices({
-        success: (res) => {
-          const targetDevice = res.devices.find((item) => item.name === DEVICE_NAME)
-          if (!targetDevice) return
-
-          clearScanTimer()
-          isScanning = false
-          wx.stopBluetoothDevicesDiscovery({ success: () => {}, fail: () => {} })
-          this.doConnectDevice(targetDevice.deviceId)
-        }
-      })
-    }, 1000)
-  },
-
-  doConnectDevice(id) {
-    this.setData({
-      loading: true,
-      discovering: false,
-      statusText: '设备已找到，正在建立连接...',
-      statusTone: 'busy',
-      connectionLabel: '连接中'
-    })
-
-    wx.createBLEConnection({
-      deviceId: id,
-      success: () => {
-        deviceId = id
-        isConnecting = false
-        this.setData({
-          connected: true,
-          loading: false,
-          discovering: false,
-          statusText: '连接成功，正在订阅实时数据',
-          statusTone: 'success',
-          primaryButtonText: '断开连接',
-          connectionLabel: '已连接',
-          environmentHint: '正在同步温湿度传感器数据'
-        })
-        this.getServices(id)
-      },
-      fail: () => {
-        deviceId = null
-        isConnecting = false
-        this.setData({
-          connected: false,
-          loading: false,
-          discovering: false,
-          statusText: '连接失败，请重试',
-          statusTone: 'danger',
-          primaryButtonText: '重新连接',
-          connectionLabel: '连接失败'
-        })
-      }
-    })
-  },
-
-  getServices(id) {
-    wx.getBLEDeviceServices({
-      deviceId: id,
-      success: (res) => {
-        res.services.forEach((service) => {
-          const uuid = service.uuid.toUpperCase()
-          if (uuid === HTS_SERVICE.toUpperCase()) {
-            this.subscribeCharacteristic(id, service.uuid, HTS_TEMP_CHAR)
-          } else if (uuid === ESS_SERVICE.toUpperCase()) {
-            this.subscribeCharacteristic(id, service.uuid, ESS_HUM_CHAR)
+        clearScanTimeout()
+        scanTimeout = setTimeout(() => {
+          if (!this.data.receiving) {
+            this.setData({
+              statusText: '暂未收到目标广播，仍在继续扫描',
+              statusTone: 'busy',
+              hintText: '请检查 ESP32-S3 是否已烧录 dht11_ble，且手机蓝牙权限已允许。'
+            })
           }
-        })
-
-        this.setData({
-          statusText: '已连接，等待传感器推送数据',
-          statusTone: 'success'
-        })
+        }, 12000)
       },
       fail: () => {
+        scanning = false
         this.setData({
-          statusText: '已连接，但服务发现失败',
+          scanning: false,
+          statusText: '扫描启动失败，请稍后重试',
           statusTone: 'danger',
-          environmentHint: '请检查设备 GATT 服务是否正常开放'
+          primaryButtonText: '重新扫描'
         })
       }
     })
   },
 
-  subscribeCharacteristic(currentDeviceId, serviceId, targetCharId) {
-    wx.getBLEDeviceCharacteristics({
-      deviceId: currentDeviceId,
-      serviceId,
-      success: (res) => {
-        res.characteristics.forEach((item) => {
-          if (item.uuid.toUpperCase() !== targetCharId.toUpperCase()) return
-          if (!item.properties.notify && !item.properties.indicate) return
-
-          wx.notifyBLECharacteristicValueChange({
-            deviceId: currentDeviceId,
-            serviceId,
-            characteristicId: item.uuid,
-            state: true,
-            success: () => {
-              wx.readBLECharacteristicValue({
-                deviceId: currentDeviceId,
-                serviceId,
-                characteristicId: item.uuid
-              })
-            }
-          })
-        })
-      }
-    })
-  },
-
-  disconnect() {
-    if (!deviceId) return
-
-    const currentDeviceId = deviceId
-    deviceId = null
-    isConnecting = false
-    isScanning = false
-    clearScanTimer()
-
+  stopScan(message = '已停止扫描', tone = 'idle') {
+    scanning = false
+    clearScanTimeout()
     wx.stopBluetoothDevicesDiscovery({ success: () => {}, fail: () => {} })
-    wx.closeBLEConnection({ deviceId: currentDeviceId, success: () => {}, fail: () => {} })
-
     this.setData({
-      connected: false,
-      loading: false,
-      discovering: false,
-      temperature: '--',
-      humidity: '--',
-      statusText: '已断开连接',
-      statusTone: 'idle',
-      primaryButtonText: '重新连接',
-      connectionLabel: '待连接',
-      lastUpdated: '--:--:--',
-      environmentHint: '断开后可再次扫描并连接传感器',
-      temperatureTrend: '等待数据',
-      humidityTrend: '等待数据'
+      scanning: false,
+      statusText: message,
+      statusTone: tone,
+      primaryButtonText: '开始扫描'
     })
   },
 
   handlePrimaryAction() {
-    if (this.data.connected) {
-      this.disconnect()
+    if (scanning) {
+      this.stopScan()
       return
     }
-    this.connect()
+    this.startScan()
   },
 
   cleanup() {
-    clearScanTimer()
-    isConnecting = false
-    isScanning = false
-
-    if (this.handleConnectionStateChange && wx.offBLEConnectionStateChange) {
-      wx.offBLEConnectionStateChange(this.handleConnectionStateChange)
+    this.stopScan()
+    if (this.handleDeviceFound && wx.offBluetoothDeviceFound) {
+      wx.offBluetoothDeviceFound(this.handleDeviceFound)
     }
-    if (this.handleCharacteristicValueChange && wx.offBLECharacteristicValueChange) {
-      wx.offBLECharacteristicValueChange(this.handleCharacteristicValueChange)
+    if (this.handleAdapterStateChange && wx.offBluetoothAdapterStateChange) {
+      wx.offBluetoothAdapterStateChange(this.handleAdapterStateChange)
     }
-
-    wx.stopBluetoothDevicesDiscovery({ success: () => {}, fail: () => {} })
-    if (deviceId) {
-      const currentDeviceId = deviceId
-      deviceId = null
-      wx.closeBLEConnection({ deviceId: currentDeviceId, success: () => {}, fail: () => {} })
-    }
+    wx.closeBluetoothAdapter({ success: () => {}, fail: () => {} })
   }
 })

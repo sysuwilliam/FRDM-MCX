@@ -1,0 +1,15 @@
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/gpio/arduino-header-r3.h>
+
+/ {
+	aliases {
+		dht0 = &dht11_sensor;
+	};
+
+	dht11_sensor: dht11 {
+		compatible = "aosong,dht";
+		status = "okay";
+		/* FRDM-MCXN947 Arduino D2 -> gpio0 pin 29. Add a 4.7 kOhm pull-up to 3.3 V. */
+		dio-gpios = <&arduino_header ARDUINO_HEADER_R3_D2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	};
+};

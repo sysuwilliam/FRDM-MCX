@@ -1,77 +1,59 @@
 <view class="page">
-  <view class="ambient ambient-top"></view>
-  <view class="ambient ambient-bottom"></view>
-
-  <view class="hero-card">
-    <view class="hero-head">
-      <view>
-        <text class="eyebrow">FRDM-MCX 环境监测</text>
-        <text class="hero-title">温湿度实时面板</text>
-      </view>
-      <view class="signal {{connected ? 'signal-active' : ''}}">
-        <view class="signal-ring ring-one"></view>
-        <view class="signal-ring ring-two"></view>
-        <view class="signal-core"></view>
-      </view>
+  <view class="header">
+    <view>
+      <text class="eyebrow">FRDM-MCXN947 + ESP32-S3</text>
+      <text class="title">温湿度广播接收</text>
     </view>
-
-    <view class="status-pill status-{{statusTone}}">
-      <view class="status-dot"></view>
-      <text>{{statusText}}</text>
+    <view class="radio {{receiving ? 'radio-active' : ''}}">
+      <view class="radio-core"></view>
     </view>
+  </view>
 
-    <view class="hero-meta">
-      <view class="meta-item">
-        <text class="meta-label">设备名称</text>
-        <text class="meta-value">MCXW71_TH</text>
-      </view>
-      <view class="meta-item">
-        <text class="meta-label">连接状态</text>
-        <text class="meta-value">{{connectionLabel}}</text>
-      </view>
-      <view class="meta-item">
-        <text class="meta-label">最近刷新</text>
-        <text class="meta-value">{{lastUpdated}}</text>
-      </view>
-    </view>
-
-    <text class="hero-hint">{{environmentHint}}</text>
+  <view class="status status-{{statusTone}}">
+    <view class="status-dot"></view>
+    <text>{{statusText}}</text>
   </view>
 
   <view class="metrics">
-    <view class="metric-card metric-temp">
-      <text class="metric-kicker">Temperature</text>
-      <view class="metric-main">
+    <view class="metric metric-temp">
+      <text class="metric-label">温度</text>
+      <view class="metric-value-row">
         <text class="metric-value">{{temperature}}</text>
         <text class="metric-unit">°C</text>
       </view>
-      <text class="metric-caption">{{temperatureTrend}}</text>
-      <view class="metric-glow"></view>
     </view>
 
-    <view class="metric-card metric-hum">
-      <text class="metric-kicker">Humidity</text>
-      <view class="metric-main">
+    <view class="metric metric-humidity">
+      <text class="metric-label">湿度</text>
+      <view class="metric-value-row">
         <text class="metric-value">{{humidity}}</text>
-        <text class="metric-unit">%</text>
+        <text class="metric-unit">%RH</text>
       </view>
-      <text class="metric-caption">{{humidityTrend}}</text>
-      <view class="metric-glow"></view>
     </view>
   </view>
 
-  <view class="insight-card">
-    <view class="insight-head">
-      <text class="insight-title">工作流程</text>
-      <text class="insight-badge">{{discovering ? '扫描中' : (loading ? '处理中' : (connected ? '在线' : '待机'))}}</text>
+  <view class="panel">
+    <view class="detail-row">
+      <text class="detail-label">设备名</text>
+      <text class="detail-value">{{deviceName}}</text>
     </view>
-    <text class="insight-text">小程序会自动扫描蓝牙设备、连接指定传感器，并订阅温度与湿度特征值通知。</text>
+    <view class="detail-row">
+      <text class="detail-label">RSSI</text>
+      <text class="detail-value">{{rssi}}</text>
+    </view>
+    <view class="detail-row">
+      <text class="detail-label">序号</text>
+      <text class="detail-value">{{sequence}}</text>
+    </view>
+    <view class="detail-row">
+      <text class="detail-label">最近刷新</text>
+      <text class="detail-value">{{lastUpdated}}</text>
+    </view>
   </view>
 
-  <button
-    class="primary-btn {{connected ? 'primary-btn-danger' : ''}}"
-    bindtap="handlePrimaryAction"
-    disabled="{{loading || discovering}}">
-    {{loading || discovering ? '请稍候...' : primaryButtonText}}
+  <text class="hint">{{hintText}}</text>
+
+  <button class="primary-btn {{scanning ? 'primary-btn-stop' : ''}}" bindtap="handlePrimaryAction">
+    {{primaryButtonText}}
   </button>
 </view>

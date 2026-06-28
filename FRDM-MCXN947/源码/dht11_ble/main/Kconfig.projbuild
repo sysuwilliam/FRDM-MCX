@@ -1,0 +1,16 @@
+menu "DHT11 BLE bridge"
+
+    config DHT11_UART_RX_GPIO
+        int "ESP32-S3 UART RX GPIO"
+        default 18
+        help
+            Connect FRDM-MCXN947 Arduino D1/TX to this ESP32-S3 GPIO.
+
+    config DHT11_UART_TX_GPIO
+        int "ESP32-S3 UART TX GPIO"
+        default 17
+        help
+            UART TX pin. It is configured for completeness; the bridge only
+            requires RX plus a common GND.
+
+endmenu

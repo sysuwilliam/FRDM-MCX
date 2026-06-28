@@ -25,7 +25,7 @@
 static const struct device *const dht = DEVICE_DT_GET(DHT_NODE);
 static const struct device *const esp32_uart = DEVICE_DT_GET(ESP32_UART_NODE);
 
-static int32_t sensor_value_to_centi(const struct sensor_value *value)
+static int32_t measurement_value_to_centi(const struct sensor_value *value)
 {
 	return (value->val1 * 100) + (value->val2 / 10000);
 }
@@ -46,8 +46,8 @@ static void send_measurement_frame(uint32_t sequence,
 
 	len = snprintk(frame, sizeof(frame), "TH,%lu,%ld,%ld\r\n",
 		       (unsigned long)sequence,
-		       (long)sensor_value_to_centi(temperature),
-		       (long)sensor_value_to_centi(humidity));
+		       (long)measurement_value_to_centi(temperature),
+		       (long)measurement_value_to_centi(humidity));
 	if (len > 0 && len < sizeof(frame)) {
 		uart_write_string(esp32_uart, frame);
 	}

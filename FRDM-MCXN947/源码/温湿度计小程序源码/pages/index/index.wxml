@@ -1,0 +1,59 @@
+<view class="page">
+  <view class="header">
+    <view>
+      <text class="eyebrow">FRDM-MCXN947 + ESP32-S3</text>
+      <text class="title">温湿度广播接收</text>
+    </view>
+    <view class="radio {{receiving ? 'radio-active' : ''}}">
+      <view class="radio-core"></view>
+    </view>
+  </view>
+
+  <view class="status status-{{statusTone}}">
+    <view class="status-dot"></view>
+    <text>{{statusText}}</text>
+  </view>
+
+  <view class="metrics">
+    <view class="metric metric-temp">
+      <text class="metric-label">温度</text>
+      <view class="metric-value-row">
+        <text class="metric-value">{{temperature}}</text>
+        <text class="metric-unit">°C</text>
+      </view>
+    </view>
+
+    <view class="metric metric-humidity">
+      <text class="metric-label">湿度</text>
+      <view class="metric-value-row">
+        <text class="metric-value">{{humidity}}</text>
+        <text class="metric-unit">%RH</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="detail-row">
+      <text class="detail-label">设备名</text>
+      <text class="detail-value">{{deviceName}}</text>
+    </view>
+    <view class="detail-row">
+      <text class="detail-label">RSSI</text>
+      <text class="detail-value">{{rssi}}</text>
+    </view>
+    <view class="detail-row">
+      <text class="detail-label">序号</text>
+      <text class="detail-value">{{sequence}}</text>
+    </view>
+    <view class="detail-row">
+      <text class="detail-label">最近刷新</text>
+      <text class="detail-value">{{lastUpdated}}</text>
+    </view>
+  </view>
+
+  <text class="hint">{{hintText}}</text>
+
+  <button class="primary-btn {{scanning ? 'primary-btn-stop' : ''}}" bindtap="handlePrimaryAction">
+    {{primaryButtonText}}
+  </button>
+</view>

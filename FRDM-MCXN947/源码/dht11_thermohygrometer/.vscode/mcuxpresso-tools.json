@@ -1,0 +1,12 @@
+{
+  "version": "25.3",
+  "toolchainPath": "d:/Zephyr/sdk/gnu/arm-zephyr-eabi",
+  "linkedProjects": [],
+  "trustZoneType": "none",
+  "multicoreType": "none",
+  "projectType": "zephyr-freestanding",
+  "sdk": {
+    "path": "d:\\NXP\\nxp_zephyr",
+    "version": "4.4.0.0"
+  }
+}
